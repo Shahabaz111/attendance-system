@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Employee Attendance</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #333;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+    }
+    h2 {
+      margin-bottom: 20px;
+      color: #0077cc;
+    }
+    button {
+      padding: 12px 25px;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #0077cc;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    .message {
+      margin-top: 20px;
+      font-weight: bold;
+      color: #0077cc;
+    }
+    #userInfo {
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Employee Attendance Portal</h2>
+  <div id="userInfo"></div>
+  <button onclick="signIn()">Login with Google</button>
+  <div id="attendanceSection" style="display: none;">
+    <button onclick="markAttendance('in')">Punch In</button>
+    <button onclick="markAttendance('out')">Punch Out</button>
+    <div class="message" id="message"></div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBwVjP4iT57zrqCLujmWTZRS3vVMGWMxgA",
+    authDomain: "employee-attendance-82357.firebaseapp.com",
+    projectId: "employee-attendance-82357",
+    storageBucket: "employee-attendance-82357.firebasestorage.app",
+    messagingSenderId: "912766627296",
+    appId: "1:912766627296:web:76813a26f43b241c570f85",
+    measurementId: "G-8K55GJBS0X"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  const officeLat = 11.774167;
+  const officeLng = 75.470333;
+  const allowedDistance = 100; // in meters
+
+  function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function signIn() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider)
+      .then((result) => {
+        const user = result.user;
+        document.getElementById("userInfo").innerHTML = `
+          <p><strong>Name:</strong> ${user.displayName}</p>
+          <p><strong>Email:</strong> ${user.email}</p>`;
+        document.getElementById("attendanceSection").style.display = "block";
+      })
+      .catch((error) => {
+        alert("Login Failed: " + error.message);
+      });
+  }
+
+  function markAttendance(type) {
+    const user = auth.currentUser;
+    if (!user) {
+      alert("Please log in first.");
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(position => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const distance = getDistance(lat, lng, officeLat, officeLng);
+
+      if (distance > allowedDistance) {
+        document.getElementById("message").innerText =
+          `Punch denied. You're ${Math.round(distance)}m away from office.`;
+        return;
+      }
+
+      const now = new Date();
+      const date = now.toISOString().split('T')[0];
+      const time = now.toLocaleTimeString();
+
+      db.collection("attendance").add({
+        uid: user.uid,
+        name: user.displayName,
+        email: user.email,
+        date: date,
+        time: time,
+        type: type,
+        location: { lat, lng }
+      }).then(() => {
+        document.getElementById("message").innerText =
+          `Punch ${type.toUpperCase()} recorded at ${time}`;
+      }).catch(err => {
+        console.error(err);
+        document.getElementById("message").innerText = "Error recording attendance.";
+      });
+
+    }, error => {
+      alert("Please allow location access to mark attendance.");
+    });
+  }
+</script>
+
+</body>
+</html>
