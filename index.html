@@ -4,14 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Attendance System</title>
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <style>
     * {
       box-sizing: border-box;
-      font-family: 'Orbitron', sans-serif;
+      font-family: 'Poppins', sans-serif;
     }
     body {
-      background: linear-gradient(to bottom right, #f5faff, #ffffff);
+      background: linear-gradient(to bottom right, #f0f4ff, #ffffff);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -22,33 +22,35 @@
       background: #ffffffee;
       padding: 40px;
       border-radius: 20px;
-      box-shadow: 0 0 30px rgba(0, 140, 255, 0.3);
+      box-shadow: 0 0 30px rgba(0, 140, 255, 0.15);
       text-align: center;
       max-width: 400px;
       width: 100%;
     }
     h1 {
       margin-bottom: 20px;
-      color: #003366;
+      color: #222;
+      font-weight: 600;
     }
     button {
       padding: 12px 24px;
       border: none;
       border-radius: 10px;
-      background-color: #008cff;
+      background-color: #005eff;
       color: white;
-      font-size: 16px;
+      font-size: 15px;
+      font-weight: 500;
       cursor: pointer;
       margin: 10px;
-      transition: background 0.3s;
+      transition: background 0.3s ease;
     }
     button:hover {
-      background-color: #0066cc;
+      background-color: #0041c4;
     }
     #successMsg {
       margin-top: 15px;
       color: green;
-      font-weight: bold;
+      font-weight: 500;
     }
     #loginSection, #punchSection {
       display: none;
@@ -58,7 +60,7 @@
 <body>
 
   <div class="container">
-    <h1>Attendance System</h1>
+    <h1>Employee Attendance</h1>
 
     <div id="loginSection">
       <button onclick="login()">Login with Google</button>
@@ -78,7 +80,6 @@
     import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
     import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyBwVjP4iT57zrqCLujmWTZRS3vVMGWMxgA",
       authDomain: "employee-attendance-82357.firebaseapp.com",
@@ -94,7 +95,6 @@
     const provider = new GoogleAuthProvider();
     const db = getFirestore(app);
 
-    // Office safe zone
     const officeLat = 11.774167;
     const officeLng = 75.470333;
 
@@ -110,7 +110,6 @@
       return R * c;
     }
 
-    // Auth state listener
     onAuthStateChanged(auth, (user) => {
       if (user) {
         document.getElementById("loginSection").style.display = "none";
@@ -122,7 +121,6 @@
       }
     });
 
-    // Google login
     function login() {
       signInWithPopup(auth, provider)
         .then((result) => console.log("Logged in:", result.user))
@@ -133,7 +131,6 @@
       signOut(auth);
     }
 
-    // Punch in function
     function punchIn() {
       const user = auth.currentUser;
       if (!user) return;
@@ -144,19 +141,18 @@
 
         const distance = getDistanceFromLatLonInMeters(userLat, userLng, officeLat, officeLng);
         if (distance > 200) {
-          document.getElementById("successMsg").innerText = "❌ You're too far from the office to punch in.";
+          document.getElementById("successMsg").innerText = "You're too far from the office to punch in.";
           return;
         }
 
         const now = new Date();
         const todayStr = now.toISOString().split("T")[0];
-
         const punchRef = collection(db, "attendance");
         const q = query(punchRef, where("uid", "==", user.uid), where("date", "==", todayStr));
         const snapshot = await getDocs(q);
 
         if (!snapshot.empty) {
-          document.getElementById("successMsg").innerText = "❗ You’ve already punched in today.";
+          document.getElementById("successMsg").innerText = "You’ve already punched in today.";
           return;
         }
 
@@ -170,13 +166,12 @@
           lng: userLng
         });
 
-        document.getElementById("successMsg").innerText = "✅ Punch-in successful!";
+        document.getElementById("successMsg").innerText = "Punch-in successful!";
       }, () => {
-        document.getElementById("successMsg").innerText = "⚠️ Please allow location access.";
+        document.getElementById("successMsg").innerText = "Please allow location access.";
       });
     }
 
-    // Expose for button onclick
     window.login = login;
     window.logout = logout;
     window.punchIn = punchIn;
