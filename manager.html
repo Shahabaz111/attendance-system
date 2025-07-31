@@ -1,0 +1,170 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manager Login - Attendance</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 30px;
+    }
+
+    h2 {
+      margin-bottom: 10px;
+    }
+
+    .login-box, .table-box {
+      background-color: white;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      width: 90%;
+      max-width: 600px;
+      margin-top: 40px;
+    }
+
+    .login-box input {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 16px;
+    }
+
+    .login-box button {
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      border: none;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    table, th, td {
+      border: 1px solid #ddd;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: center;
+    }
+
+    .present {
+      color: green;
+      font-weight: bold;
+    }
+
+    .absent {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>Manager Login</h2>
+  <div class="login-box" id="loginBox">
+    <input type="text" id="managerId" placeholder="Enter Manager ID" />
+    <input type="password" id="managerPassword" placeholder="Enter Password" />
+    <button onclick="checkLogin()">Login</button>
+  </div>
+
+  <div class="table-box hidden" id="dataBox">
+    <h2>Attendance Records</h2>
+    <table id="attendanceTable">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Date</th>
+          <th>Time</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="attendanceBody"></tbody>
+    </table>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBwVjP4iT57zrqCLujmWTZRS3vVMGWMxgA",
+      authDomain: "employee-attendance-82357.firebaseapp.com",
+      projectId: "employee-attendance-82357",
+      storageBucket: "employee-attendance-82357.appspot.com",
+      messagingSenderId: "912766627296",
+      appId: "1:912766627296:web:76813a26f43b241c570f85",
+      measurementId: "G-8K55GJBS0X"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const employeeTimes = {
+      "shahabaz": "10:30",
+      "nabeel": "10:00",
+      "shahala": "09:00",
+      "jasna": "10:00",
+      "fasmiya": "10:00",
+      "hudha": "09:30"
+    };
+
+    function checkLogin() {
+      const id = document.getElementById("managerId").value;
+      const pw = document.getElementById("managerPassword").value;
+
+      if (id === "mastered" && pw === "speakon007") {
+        document.getElementById("loginBox").classList.add("hidden");
+        document.getElementById("dataBox").classList.remove("hidden");
+        loadAttendance();
+      } else {
+        alert("Incorrect Manager ID or Password.");
+      }
+    }
+
+    function isLate(name, punchTime) {
+      if (!employeeTimes[name]) return "Absent";
+      const expected = employeeTimes[name];
+      const punch = punchTime.substring(0, 5); // HH:MM
+      return punch <= expected ? "Present" : "Absent";
+    }
+
+    async function loadAttendance() {
+      const querySnapshot = await getDocs(collection(db, "attendance"));
+      const tbody = document.getElementById("attendanceBody");
+      tbody.innerHTML = "";
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const status = isLate(data.name, data.time);
+        const row = `
+          <tr>
+            <td>${data.name}</td>
+            <td>${data.date}</td>
+            <td>${data.time}</td>
+            <td class="${status === 'Present' ? 'present' : 'absent'}">${status}</td>
+          </tr>
+        `;
+        tbody.innerHTML += row;
+      });
+    }
+  </script>
+</body>
+</html>
