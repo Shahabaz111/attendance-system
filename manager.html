@@ -1,91 +1,69 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Manager Login - Attendance</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap" rel="stylesheet"/>
+  <title>Manager Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <style>
     body {
-      margin: 0;
       font-family: 'Poppins', sans-serif;
-      background-color: #f4f4f4;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 30px;
-    }
-
-    h2 {
-      margin-bottom: 10px;
-    }
-
-    .login-box, .table-box {
-      background-color: white;
-      padding: 25px;
-      border-radius: 8px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      width: 90%;
-      max-width: 600px;
-      margin-top: 40px;
-    }
-
-    .login-box input {
-      width: 100%;
-      padding: 10px;
-      margin: 10px 0;
-      font-size: 16px;
-    }
-
-    .login-box button {
-      background-color: #007bff;
-      color: white;
-      padding: 10px;
-      border: none;
-      width: 100%;
-      cursor: pointer;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-
-    table, th, td {
-      border: 1px solid #ddd;
-    }
-
-    th, td {
-      padding: 10px;
+      background: #f9f9f9;
+      margin: 0;
+      padding: 20px;
       text-align: center;
     }
-
+    h1 {
+      color: #333;
+    }
+    input {
+      padding: 10px;
+      margin: 10px;
+      width: 200px;
+    }
+    button {
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    #table-section {
+      display: none;
+      margin-top: 30px;
+    }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      width: 90%;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+    }
+    th {
+      background-color: #eee;
+    }
     .present {
       color: green;
-      font-weight: bold;
     }
-
     .absent {
       color: red;
-      font-weight: bold;
     }
   </style>
 </head>
 <body>
-  <h2>Manager Login</h2>
-  <div class="login-box" id="loginBox">
-    <input type="text" id="managerId" placeholder="Enter Manager ID" />
-    <input type="password" id="managerPassword" placeholder="Enter Password" />
-    <button onclick="checkLogin()">Login</button>
+
+  <h1>Manager Login</h1>
+
+  <div id="login-section">
+    <input type="text" id="managerId" placeholder="Manager ID" /><br />
+    <input type="password" id="managerPass" placeholder="Password" /><br />
+    <button onclick="loginManager()">Login</button>
+    <p id="loginError" style="color:red;"></p>
   </div>
 
-  <div class="table-box hidden" id="dataBox">
+  <div id="table-section">
     <h2>Attendance Records</h2>
     <table id="attendanceTable">
       <thead>
@@ -96,7 +74,7 @@
           <th>Status</th>
         </tr>
       </thead>
-      <tbody id="attendanceBody"></tbody>
+      <tbody></tbody>
     </table>
   </div>
 
@@ -126,40 +104,41 @@
       "hudha": "09:30"
     };
 
-    function checkLogin() {
-      const id = document.getElementById("managerId").value;
-      const pw = document.getElementById("managerPassword").value;
+    window.loginManager = async function () {
+      const id = document.getElementById('managerId').value.trim();
+      const pass = document.getElementById('managerPass').value.trim();
+      const errorBox = document.getElementById('loginError');
 
-      if (id === "mastered" && pw === "speakon007") {
-        document.getElementById("loginBox").classList.add("hidden");
-        document.getElementById("dataBox").classList.remove("hidden");
-        loadAttendance();
+      if (id === "mastered" && pass === "speakon007") {
+        document.getElementById("login-section").style.display = "none";
+        document.getElementById("table-section").style.display = "block";
+        loadData();
       } else {
-        alert("Incorrect Manager ID or Password.");
+        errorBox.textContent = "Invalid ID or Password.";
       }
-    }
+    };
 
-    function isLate(name, punchTime) {
-      if (!employeeTimes[name]) return "Absent";
-      const expected = employeeTimes[name];
-      const punch = punchTime.substring(0, 5); // HH:MM
-      return punch <= expected ? "Present" : "Absent";
-    }
-
-    async function loadAttendance() {
-      const querySnapshot = await getDocs(collection(db, "attendance"));
-      const tbody = document.getElementById("attendanceBody");
+    async function loadData() {
+      const snapshot = await getDocs(collection(db, "attendance"));
+      const tbody = document.querySelector("#attendanceTable tbody");
       tbody.innerHTML = "";
 
-      querySnapshot.forEach((doc) => {
+      snapshot.forEach(doc => {
         const data = doc.data();
-        const status = isLate(data.name, data.time);
+        const name = data.name;
+        const date = data.date;
+        const time = data.time;
+        const required = employeeTimes[name] || "10:00";
+
+        const status = (time <= required) ? "✅ Present" : "❌ Absent";
+        const statusClass = (time <= required) ? "present" : "absent";
+
         const row = `
           <tr>
-            <td>${data.name}</td>
-            <td>${data.date}</td>
-            <td>${data.time}</td>
-            <td class="${status === 'Present' ? 'present' : 'absent'}">${status}</td>
+            <td>${name}</td>
+            <td>${date}</td>
+            <td>${time}</td>
+            <td class="${statusClass}">${status}</td>
           </tr>
         `;
         tbody.innerHTML += row;
