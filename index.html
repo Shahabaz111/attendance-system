@@ -2,83 +2,93 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Employee Attendance</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: 'Poppins', sans-serif;
-    }
     body {
-      background: linear-gradient(to bottom right, #f4f8ff, #ffffff);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #f0f0f0, #ffffff);
       margin: 0;
-    }
-    .container {
-      background: #ffffff;
-      padding: 40px;
-      border-radius: 20px;
-      box-shadow: 0 0 30px rgba(0, 140, 255, 0.1);
+      padding: 0;
       text-align: center;
-      max-width: 400px;
-      width: 100%;
     }
+
+    .container {
+      margin-top: 100px;
+    }
+
     h1 {
-      margin-bottom: 20px;
-      color: #222;
-      font-weight: 600;
+      font-size: 28px;
+      color: #333;
     }
-    button {
-      padding: 12px 24px;
+
+    #loginBtn, #punchBtn {
+      margin-top: 20px;
+      padding: 15px 25px;
+      font-size: 16px;
       border: none;
-      border-radius: 10px;
-      background-color: #005eff;
-      color: white;
-      font-size: 15px;
-      font-weight: 500;
+      border-radius: 5px;
       cursor: pointer;
-      margin: 10px;
-      transition: background 0.3s ease;
+      transition: all 0.3s ease;
     }
-    button:hover {
-      background-color: #0041c4;
+
+    #loginBtn {
+      background-color: #007bff;
+      color: white;
     }
-    #successMsg {
-      margin-top: 15px;
-      color: green;
-      font-weight: 500;
-    }
-    #loginSection, #punchSection {
+
+    #punchBtn {
+      background-color: #28a745;
+      color: white;
       display: none;
+    }
+
+    .success-message {
+      margin-top: 20px;
+      font-size: 18px;
+      color: green;
+      animation: fadeIn 1s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .manager-link {
+      margin-top: 50px;
+      display: inline-block;
+      padding: 12px 20px;
+      background-color: #555;
+      color: #fff;
+      text-decoration: none;
+      border-radius: 5px;
+    }
+
+    .manager-link:hover {
+      background-color: #333;
     }
   </style>
 </head>
 <body>
-
   <div class="container">
     <h1>Employee Attendance</h1>
+    <button id="loginBtn">Login with Google</button>
+    <button id="punchBtn">Punch In</button>
+    <div class="success-message" id="successMessage"></div>
+  </div>
 
-    <div id="loginSection">
-      <button onclick="login()">Login with Google</button>
-    </div>
-
-    <div id="punchSection">
-      <p id="welcomeName"></p>
-      <button onclick="punchIn()">Punch In</button>
-      <button onclick="logout()">Logout</button>
-      <div id="successMsg"></div>
-    </div>
+  <!-- Manager Login Link -->
+  <div style="text-align:center;">
+    <a class="manager-link" href="manager.html">Manager Login</a>
   </div>
 
   <!-- Firebase SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-    import { getFirestore, collection, addDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBwVjP4iT57zrqCLujmWTZRS3vVMGWMxgA",
@@ -91,91 +101,83 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const auth = getAuth();
-    const provider = new GoogleAuthProvider();
+    const auth = getAuth(app);
     const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
 
-    // 🧭 Updated office location (safe zone center)
-    const officeLat = 11.237363;
-    const officeLng = 75.804448;
+    const loginBtn = document.getElementById("loginBtn");
+    const punchBtn = document.getElementById("punchBtn");
+    const successMessage = document.getElementById("successMessage");
 
-    function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+    const SAFE_ZONE = {
+      lat: 11.237363,
+      lng: 75.804448,
+      radius: 200 // meters
+    };
+
+    function getDistance(lat1, lon1, lat2, lon2) {
+      const toRad = (x) => x * Math.PI / 180;
       const R = 6371000;
-      const dLat = (lat2 - lat1) * Math.PI / 180;
-      const dLon = (lon2 - lon1) * Math.PI / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+      return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        document.getElementById("loginSection").style.display = "none";
-        document.getElementById("punchSection").style.display = "block";
-        document.getElementById("welcomeName").innerText = `Welcome, ${user.displayName}`;
-      } else {
-        document.getElementById("loginSection").style.display = "block";
-        document.getElementById("punchSection").style.display = "none";
-      }
-    });
-
-    function login() {
+    loginBtn.onclick = () => {
       signInWithPopup(auth, provider)
-        .then((result) => console.log("Logged in:", result.user))
-        .catch((error) => console.error("Login error:", error));
-    }
+        .then(() => {
+          punchBtn.style.display = "inline-block";
+          loginBtn.style.display = "none";
+        })
+        .catch(error => alert("Login Failed: " + error.message));
+    };
 
-    function logout() {
-      signOut(auth);
-    }
-
-    function punchIn() {
-      const user = auth.currentUser;
-      if (!user) return;
+    punchBtn.onclick = () => {
+      if (!navigator.geolocation) {
+        alert("Geolocation not supported.");
+        return;
+      }
 
       navigator.geolocation.getCurrentPosition(async (position) => {
-        const userLat = position.coords.latitude;
-        const userLng = position.coords.longitude;
+        const user = auth.currentUser;
+        const name = user.displayName.toLowerCase();
 
-        const distance = getDistanceFromLatLonInMeters(userLat, userLng, officeLat, officeLng);
-        if (distance > 200) {
-          document.getElementById("successMsg").innerText = "You're too far from the office to punch in.";
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        const distance = getDistance(lat, lng, SAFE_ZONE.lat, SAFE_ZONE.lng);
+
+        if (distance > SAFE_ZONE.radius) {
+          alert("You are outside the allowed location zone.");
           return;
         }
 
         const now = new Date();
-        const todayStr = now.toISOString().split("T")[0];
-        const punchRef = collection(db, "attendance");
-        const q = query(punchRef, where("uid", "==", user.uid), where("date", "==", todayStr));
-        const snapshot = await getDocs(q);
+        const date = now.toISOString().split('T')[0];
+        const time = now.toTimeString().split(' ')[0];
 
-        if (!snapshot.empty) {
-          document.getElementById("successMsg").innerText = "You’ve already punched in today.";
-          return;
-        }
+        const data = {
+          name: name,
+          date: date,
+          time: time,
+          timestamp: serverTimestamp()
+        };
 
-        await addDoc(punchRef, {
-          uid: user.uid,
-          name: user.displayName,
-          email: user.email,
-          timestamp: serverTimestamp(),
-          date: todayStr,
-          lat: userLat,
-          lng: userLng
-        });
+        await addDoc(collection(db, "attendance"), data);
+        successMessage.innerText = `Punch successful at ${time}`;
+        punchBtn.disabled = true;
 
-        document.getElementById("successMsg").innerText = "✅ Punch-in successful!";
       }, () => {
-        document.getElementById("successMsg").innerText = "Please allow location access.";
+        alert("Failed to get your location.");
       });
-    }
+    };
 
-    window.login = login;
-    window.logout = logout;
-    window.punchIn = punchIn;
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        punchBtn.style.display = "inline-block";
+        loginBtn.style.display = "none";
+      }
+    });
   </script>
 </body>
 </html>
